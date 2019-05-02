@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SOURCE_FILE='/tmp/src/pythagoras.go'
+SOURCE_FILE='/tmp/src/hostinfo.go'
 
 echo 'checking'
 stat $SOURCE_FILE > /dev/null
