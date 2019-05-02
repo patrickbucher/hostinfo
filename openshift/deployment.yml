@@ -1,0 +1,183 @@
+image_name: hostinfo
+apiVersion: v1
+kind: List
+items:
+
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: hostinfo-base
+    labels:
+      build: hostinfo
+
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: hostinfo-s2i
+    labels:
+      build: hostinfo
+
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: hostinfo
+    labels:
+      build: hostinfo
+
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: hostinfo-base
+    labels:
+      build: hostinfo
+  spec:
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        uri: 'https://github.com/patrickbucher/hostinfo.git'
+      contextDir: base
+    strategy:
+      type: Docker
+    output:
+      to:
+        kind: ImageStreamTag
+        name: 'hostinfo-base:latest'
+    triggers:
+      - type: ConfigChange
+
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: hostinfo-s2i
+    labels:
+      build: hostinfo
+  spec:
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        uri: 'https://github.com/patrickbucher/hostinfo.git'
+      contextDir: s2i
+    strategy:
+      type: Docker
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: 'hostinfo-base:latest'
+    output:
+      to:
+        kind: ImageStreamTag
+        name: 'hostinfo-s2i:latest'
+    triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          from:
+            kind: ImageStreamTag
+            name: 'hostinfo-base:latest'
+
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: hostinfo
+    labels:
+      build: hostinfo
+  spec:
+    RunPolicy: Serial
+    source:
+      type: Git
+      git:
+        uri: 'https://github.com/patrickbucher/hostinfo.git'
+    strategy:
+      type: Source
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: 'hostinfo-s2i:latest'
+    output:
+      to:
+        kind: ImageStreamTag
+        name: 'hostinfo:latest'
+    triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          from:
+            kind: ImageStreamTag
+            name: 'hostinfo-s2i:latest'
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: hostinfo
+    labels:
+      app: hostinfo
+  spec:
+    template:
+      metadata:
+        labels:
+          name: hostinfo
+      spec:
+        containers:
+          - name: hostinfo
+            image: 'hostinfo:latest'
+            ports:
+              - containerPort: 8080
+                protocol: TCP
+    replicas: 1
+    triggers:
+      - type: 'ConfigChange'
+      - type: 'ImageChange'
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - 'hostinfo'
+          from:
+            kind: 'ImageStreamTag'
+            name: 'hostinfo:latest'
+    strategy:
+      type: Rolling
+    readinessProbe:
+      httpGet:
+        path: /
+        port: 8080
+      initialDelaySeconds: 5
+      timeoutSeconds: 2
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 8080
+      initialDelaySeconds: 5
+      timeoutSeconds: 2
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hostinfo
+    labels:
+      app: hostinfo
+  spec:
+    ports:
+      - name: 8080-tcp
+        port: 8080
+        targetPort: 8080
+        protocol: TCP
+    selector:
+      deploymentconfig: hostinfo
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: hostinfo
+    labels:
+      app: hostinfo
+  spec:
+    path: /hostinfo
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: hostinfo
