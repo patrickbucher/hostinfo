@@ -1,14 +1,13 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 )
 
 func main() {
 	http.HandleFunc("/", hostinfo)
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
+	http.ListenAndServe("0.0.0.0:8080", nil)
 }
 
 func hostinfo(w http.ResponseWriter, r *http.Request) {
