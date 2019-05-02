@@ -13,8 +13,8 @@ func main() {
 func hostinfo(w http.ResponseWriter, r *http.Request) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		w.Write([]byte("Hello, World!"))
+		w.Write([]byte("Hello, World!\n"))
 	} else {
-		w.Write([]byte("Hello from " + hostname))
+		w.Write([]byte("Hello from " + hostname + "\n"))
 	}
 }
